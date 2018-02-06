@@ -13,9 +13,13 @@ import android.view.MenuItem;
 import android.widget.ImageButton;
 import android.widget.TextView;
 
-import hk.ust.cse.comp4521.musicplayer.player.MusicPlayer;
+import java.util.Observable;
+import java.util.Observer;
 
-public class MusicActivity extends AppCompatActivity implements View.OnClickListener {
+import hk.ust.cse.comp4521.musicplayer.player.MusicPlayer;
+import hk.ust.cse.comp4521.musicplayer.player.PlayerState;
+
+public class MusicActivity extends AppCompatActivity implements View.OnClickListener, Observer {
 
     private static final String TAG = "MusicPlayer";
     private static ImageButton playerButton, rewindButton, forwardButton;
@@ -65,6 +69,8 @@ public class MusicActivity extends AppCompatActivity implements View.OnClickList
         // create a new instance of the music player
         player = MusicPlayer.getMusicPlayer();
         player.setContext(this);
+
+        player.addObserver(this);
 
         playerButton = (ImageButton) findViewById(R.id.play);
         playerButton.setOnClickListener(this);
@@ -173,7 +179,7 @@ public class MusicActivity extends AppCompatActivity implements View.OnClickList
         else if (id == R.id.action_playlist) {
 
             Intent i = new Intent(getApplicationContext(), Playlist.class);
-            
+
             // start the playlist activity and once the user selects a song
             // from the list, return the information about the selected song
             // to MusicActivity
@@ -195,6 +201,44 @@ public class MusicActivity extends AppCompatActivity implements View.OnClickList
             player.reset();
 
             startSong(songIndex);
+        }
+    }
+
+    @Override
+    public void update(Observable observable, Object o) {
+        // The update method is called whenever the Music Player experiences
+        // change of state
+        // arg1 returns the current state of the player in the form of
+        // PlayerState enum variable
+        // Use the switch to recognize which state the player just entered and
+        // take appropriate
+        // action to handle the change of state. Here we update the play/pause
+        // button accordingly
+
+        switch ((PlayerState) o) {
+            case Ready:
+                Log.i(TAG, "Activity: Player State Changed to Ready");
+                songTitleText.setText(player.getSongTitle());
+                playerButton.setImageResource(R.drawable.ic_play_circle_outline_white_48dp);
+                break;
+            case Paused:
+                Log.i(TAG, "Activity: Player State Changed to Paused");
+                playerButton.setImageResource(R.drawable.ic_play_circle_outline_white_48dp);
+                break;
+            case Stopped:
+                Log.i(TAG, "Activity: Player State Changed to Stopped");
+                playerButton.setImageResource(R.drawable.ic_play_circle_outline_white_48dp);
+                break;
+            case Playing:
+                Log.i(TAG, "Activity: Player State Changed to Playing");
+                playerButton.setImageResource(R.drawable.ic_pause_circle_outline_white_48dp);
+                break;
+            case Reset:
+                Log.i(TAG, "Activity: Player State Changed to Reset");
+                playerButton.setImageResource(R.drawable.ic_play_circle_outline_white_48dp);
+                break;
+            default:
+                break;
         }
     }
 }
