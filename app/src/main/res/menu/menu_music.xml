@@ -3,8 +3,14 @@
     xmlns:tools="http://schemas.android.com/tools"
     tools:context="hk.ust.cse.comp4521.musicplayer.MusicActivity">
     <item
-        android:id="@+id/action_settings"
+        android:id="@+id/action_playlist"
+        android:icon="@drawable/ic_playlist_play_white_48dp"
         android:orderInCategory="100"
+        android:title="Item"
+        app:showAsAction="always" />
+    <item
+        android:id="@+id/action_settings"
+        android:orderInCategory="101"
         android:title="@string/action_settings"
         app:showAsAction="never" />
 </menu>

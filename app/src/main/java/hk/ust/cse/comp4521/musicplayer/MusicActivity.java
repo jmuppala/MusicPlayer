@@ -170,6 +170,16 @@ public class MusicActivity extends AppCompatActivity implements View.OnClickList
         if (id == R.id.action_settings) {
             return true;
         }
+        else if (id == R.id.action_playlist) {
+
+            Intent i = new Intent(getApplicationContext(), Playlist.class);
+            
+            // start the playlist activity and once the user selects a song
+            // from the list, return the information about the selected song
+            // to MusicActivity
+            startActivityForResult(i, 100);
+            return true;
+        }
 
         return super.onOptionsItemSelected(item);
     }
