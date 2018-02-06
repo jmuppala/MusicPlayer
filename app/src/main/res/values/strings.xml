@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">MusicPlayer</string>
+    <string name="action_settings">Settings</string>
+    <string name="isPlaying">Song is Playing</string>
+    <string name="stopped">Song is stopped</string>
+    <string name="paused">Song is paused</string>
+    <string name="reset">Player is reset</string>
+
+    <string-array name="Songs">
+        <item>Man with the Blues</item>
+        <item>Maroon 5 Misery</item>
+    </string-array>
+    <string-array name="filename">
+        <item>man_with_the_blues</item>
+        <item>maroon5_misery</item>
+    </string-array>
+</resources>
