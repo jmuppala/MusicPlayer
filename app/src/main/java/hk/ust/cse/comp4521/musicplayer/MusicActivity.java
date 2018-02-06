@@ -15,7 +15,7 @@ import android.widget.TextView;
 
 import hk.ust.cse.comp4521.musicplayer.player.MusicPlayer;
 
-public class MusicActivity extends AppCompatActivity {
+public class MusicActivity extends AppCompatActivity implements View.OnClickListener {
 
     private static final String TAG = "MusicPlayer";
     private static ImageButton playerButton, rewindButton, forwardButton;
@@ -66,11 +66,22 @@ public class MusicActivity extends AppCompatActivity {
         player = MusicPlayer.getMusicPlayer();
         player.setContext(this);
 
+        playerButton = (ImageButton) findViewById(R.id.play);
+        playerButton.setOnClickListener(this);
+
+        rewindButton = (ImageButton) findViewById(R.id.rewind);
+        rewindButton.setOnClickListener(this);
+
+        forwardButton = (ImageButton) findViewById(R.id.forward);
+        forwardButton.setOnClickListener(this);
+
+        songTitleText = (TextView)findViewById(R.id.songTitle);
+
         startSong(songIndex);
     }
 
     private	void	startSong(int	index){
-        final	String[]	songFile	=	getResources().getStringArray(R.array.filename);
+        final String[] songFile	= getResources().getStringArray(R.array.filename);
         final String[] songList = getResources().getStringArray(R.array.Songs);
 
         player.start(getResources().getIdentifier(songFile[index], "raw", getPackageName()), songList[index]);
@@ -127,8 +138,15 @@ public class MusicActivity extends AppCompatActivity {
 
     public void onClick(View v) {
         switch (v.getId()) {
-
-
+            case R.id.play:
+                player.play_pause();
+                break;
+            case R.id.forward:
+                player.forward();
+                break;
+            case R.id.rewind:
+                player.rewind();
+                break;
             default:
                 break;
         }
