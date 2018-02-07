@@ -1,7 +1,7 @@
 package hk.ust.cse.comp4521.musicplayer;
 
 import android.content.Context;
-import android.net.Uri;
+import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.support.v4.app.Fragment;
@@ -10,6 +10,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.SeekBar;
 import android.widget.TextView;
 
@@ -25,28 +26,34 @@ public class SongPlaying extends Fragment implements View.OnClickListener, SeekB
     private static ImageButton playerButton, rewindButton, forwardButton;
     public static Handler handler;
     private TextView songTitleText;
+    private ImageView songImage;
+
     private static int songIndex = 0;
 
     /*
+     * Class Name: MusicController
+     *
+     *    This service implements support for playing a music file using the MediaPlayer class in Android.
+     *    It supports the following intent actions:
+     *
+     *    ACTION_PLAY_PAUSE: toggles the player between playing and paused states
+     *    ACTION_RESUME: resume playing the current song
+     *    ACTION_PAUSE: pause the currently playing song
+     *    ACTION_REWIND: rewind the currently playing song by one step
+     *    ACTION_FORWARD: forward the currently playing song by one step
+     *    ACTION_STOP: stop the currently playing song
+     *    ACTION_RESET: reset the music player and release the MediaPlayer associated with it
+     *    ACTION_REPOSITION: repositions the playing position of the song to value% and resumes playing
+     *
      * Class Name: MusicPlayer
-     *
-     *    This class implements support for playing a music file using the MediaPlayer class in Android.
-     *    It supports the following methods:
-     *
-     *    play_pause(): toggles the player between playing and paused states
-     *    resume(): resume playing the current song
-     *    pause(): pause the currently playing song
-     *    rewind(): rewind the currently playing song by one step
-     *    forward(): forward the currently playing song by one step
-     *    stop(): stop the currently playing song
-     *    reset(): reset the music player and release the MediaPlayer associated with it
-     *    reposition(value): repositions the playing position of the song to value% and resumes playing
      *
      *    progress(): returns the percentage of the playback completed. useful to update the progress bar
      *    completedTime(): Amount of the song time completed playing
      *    remainingTime(): Remaining time of the song being played
      *
-     *    You should use these methods to manage the playing of the song.
+     *    You should use these actions and methods to manage the playing of the song.
+     *    In this exercise, the MusicPlayer will play only two specific songs that are hard coded.
+     *    We will relax this in the next version of the MusicPlayer class
      *
      */
     private MusicPlayer player;
@@ -77,8 +84,6 @@ public class SongPlaying extends Fragment implements View.OnClickListener, SeekB
         // create a new instance of the music player
         player = MusicPlayer.getMusicPlayer();
 
-        player.addObserver(this);
-
         Log.i(TAG, "onCreateView()");
         playerButton = (ImageButton) view.findViewById(R.id.play);
         playerButton.setOnClickListener(this);
@@ -90,6 +95,8 @@ public class SongPlaying extends Fragment implements View.OnClickListener, SeekB
         forwardButton.setOnClickListener(this);
 
         songTitleText = (TextView) view.findViewById(R.id.songTitle);
+
+        songImage = (ImageView) view.findViewById(R.id.songImage);
 
         // get reference to the SeekBar, completion time and remaining time.
         songProgressBar = (SeekBar) view.findViewById(R.id.songProgessBar);
@@ -114,12 +121,16 @@ public class SongPlaying extends Fragment implements View.OnClickListener, SeekB
         return view;
     }
 
+
+    public void setSongTitle(String title) {
+        songTitleText.setText(title);
+
+    }
+
     @Override
     public void onDestroy() {
 
         Log.i(TAG, "onDestroy()");
-
-        handler.removeCallbacks(songProgressUpdate);
 
         player.deleteObserver(this);
         handler = null;
@@ -144,6 +155,38 @@ public class SongPlaying extends Fragment implements View.OnClickListener, SeekB
     }
 
     @Override
+    public void onResume() {
+        super.onResume();
+
+        player.addObserver(this);
+
+        // reset the UI to reflect the current state of the player
+        songProgressBar.setProgress(player.progress());
+        complTime.setText(player.completedTime());
+        remTime.setText("-" + player.remainingTime());
+        setSongTitle(player.getSongTitle());
+
+        if (player.isPlaying()) {
+            updateSongProgress();
+            playerButton.setImageResource(R.drawable.ic_pause_circle_outline_white_48dp);
+        }
+        else {
+            playerButton.setImageResource(R.drawable.ic_play_circle_outline_white_48dp);
+
+        }
+
+    }
+
+    @Override
+    public void onPause() {
+
+        handler.removeCallbacks(songProgressUpdate);
+
+        player.deleteObserver(this);
+        super.onPause();
+    }
+
+    @Override
     public void onActivityCreated(Bundle savedInstanceState) {
 
         super.onActivityCreated(savedInstanceState);
@@ -151,23 +194,32 @@ public class SongPlaying extends Fragment implements View.OnClickListener, SeekB
     }
 
     public void onClick(View v) {
+
+        // Create the intent that you will use to send action to the onStartCommand()
+        // in the service
+        Intent intent = new Intent( getActivity(), MusicController.class );
+
+        // Based on which button is clicked, set the appropriate action in the intent
         switch (v.getId()) {
 
             case R.id.play:
-                player.play_pause();
+                intent.setAction(Constants.ACTION_PLAY_PAUSE);
                 break;
 
             case R.id.forward:
-                player.forward();
+                intent.setAction(Constants.ACTION_FORWARD);
                 break;
 
             case R.id.rewind:
-                player.rewind();
+                intent.setAction(Constants.ACTION_REWIND);
                 break;
 
             default:
                 break;
         }
+        // send the intent to service by calling startService. This will result in
+        // a call to the onStartCommand() of the service if the service is already running.
+        getActivity().startService(intent);
     }
 
     @Override
@@ -184,7 +236,7 @@ public class SongPlaying extends Fragment implements View.OnClickListener, SeekB
         switch ((PlayerState) o) {
             case Ready:
                 Log.i(TAG, "Activity: Player State Changed to Ready");
-                songTitleText.setText(player.getSongTitle());
+                setSongTitle(player.getSongTitle());
                 playerButton.setImageResource(R.drawable.ic_play_circle_outline_white_48dp);
                 songProgressBar.setProgress(player.progress());
                 complTime.setText(player.completedTime());
@@ -243,8 +295,14 @@ public class SongPlaying extends Fragment implements View.OnClickListener, SeekB
     public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
 
         cancelUpdateSongProgress();
-        if (fromUser && player.isPlaying())
-            player.reposition(progress);
+
+        if (fromUser && player.isPlaying()) {
+            Intent intent = new Intent(getActivity(), MusicController.class);
+            intent.setAction(Constants.ACTION_REPOSITION);
+            intent.putExtra("Position",progress);
+            getActivity().startService(intent);
+        }
+
         updateSongProgress();
     }
 

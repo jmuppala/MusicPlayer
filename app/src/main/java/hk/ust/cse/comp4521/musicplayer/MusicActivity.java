@@ -3,8 +3,6 @@ package hk.ust.cse.comp4521.musicplayer;
 import android.support.v4.app.FragmentTransaction;
 import android.content.Intent;
 import android.os.Bundle;
-import android.os.Handler;
-import android.support.design.widget.Snackbar;
 import android.support.v4.app.Fragment;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
@@ -12,23 +10,14 @@ import android.util.Log;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.widget.ImageButton;
-import android.widget.SeekBar;
-import android.widget.TextView;
-
-import java.util.Observable;
-import java.util.Observer;
 
 import hk.ust.cse.comp4521.musicplayer.player.MusicPlayer;
-import hk.ust.cse.comp4521.musicplayer.player.PlayerState;
 
 public class MusicActivity extends AppCompatActivity implements Playlist.OnSongSelectedListener  {
 
 
     private static final String TAG = "MusicActivity";
     private static int songIndex = 0;
-
-    private MusicPlayer player;
 
     // indicates if the player is running on a small screen device (false) or tablet (true)
     private boolean dualview = false;
@@ -42,17 +31,7 @@ public class MusicActivity extends AppCompatActivity implements Playlist.OnSongS
 
         Log.i(TAG, "Activity: onCreate()");
 
-        // Get the references to the buttons from the layout of the activity
-
-
-        //	get	a	reference	to	the	song	title	TextView	in	the	UI
-
-
-        // create a new instance of the music player
-        player = MusicPlayer.getMusicPlayer();
-        player.setContext(this);
-
-        startSong(songIndex);
+        startService(new Intent(this, MusicController.class));
 
         // If the view being used contains the SongPlaying fragment in the layout, then
         // we are using dualview layout and the screen size is large. So both fragments
@@ -77,22 +56,11 @@ public class MusicActivity extends AppCompatActivity implements Playlist.OnSongS
 
     }
 
-    private	void	startSong(int	index){
-        final String[] songFile	= getResources().getStringArray(R.array.filename);
-        final String[] songList = getResources().getStringArray(R.array.Songs);
-
-        player.start(getResources().getIdentifier(songFile[index], "raw", getPackageName()), songList[index]);
-
-    }
-
 
     @Override
     protected void onDestroy() {
 
         Log.i(TAG, "Activity: onDestroy()");
-
-        // reset the music player and release the media player
-        player.reset();
 
         super.onDestroy();
     }
@@ -130,22 +98,6 @@ public class MusicActivity extends AppCompatActivity implements Playlist.OnSongS
 
         super.onStop();
         Log.i(TAG, "Activity: onStop()");
-    }
-
-    public void onClick(View v) {
-        switch (v.getId()) {
-            case R.id.play:
-                player.play_pause();
-                break;
-            case R.id.forward:
-                player.forward();
-                break;
-            case R.id.rewind:
-                player.rewind();
-                break;
-            default:
-                break;
-        }
     }
 
     @Override
@@ -189,10 +141,18 @@ public class MusicActivity extends AppCompatActivity implements Playlist.OnSongS
     public void onSongSelected(int id) {
         // This method is for the OnSongSelectedListener interface. When the user selects a song in the
         // play list, then this method is invoked
-        player.reset();
 
         songIndex = id;
-        startSong(id);
+
+        // create an intent to send to MusicController service
+        Intent intent = new Intent( getApplicationContext(), MusicController.class );
+        // Add the action to the intent. Here we are trying to start the song
+        intent.setAction( Constants.ACTION_SONG );
+        // add the song ID to the intent
+        intent.putExtra("Song",id);
+        // call startService to deliver the intent to onStartCommand() in the service
+        // where it will be handled.
+        startService( intent );
 
         if (!dualview) {
 
