@@ -8,6 +8,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.os.IBinder;
 import android.support.v4.app.NotificationCompat;
@@ -21,7 +22,7 @@ import hk.ust.cse.comp4521.musicplayer.player.MusicPlayer;
 // When an already runnign service is called using startService(), only the onStartCommand() method is executed.
 // This method will handle the incoming intents when startService() is called from the activity/fragment
 
-public class MusicController extends Service implements MediaPlayer.OnErrorListener  {
+public class MusicController extends Service implements MediaPlayer.OnErrorListener, AudioManager.OnAudioFocusChangeListener   {
 
     private static final String TAG = "MusicController";
 
@@ -33,6 +34,10 @@ public class MusicController extends Service implements MediaPlayer.OnErrorListe
     private static int songIndex = 0;
 
     String CHANNEL_ID = "my_channel_01";
+
+    AudioManager mAudioManager;
+
+    boolean focus_loss_paused = false;
 
     @Override
     public IBinder onBind(Intent arg0) {
@@ -65,6 +70,8 @@ public class MusicController extends Service implements MediaPlayer.OnErrorListe
             mNotificationManager.createNotificationChannel(mChannel);
         }
 
+        // get access to the AudioManager
+        mAudioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
 
         startSong(songIndex);
 
@@ -166,6 +173,9 @@ public class MusicController extends Service implements MediaPlayer.OnErrorListe
 
             player.start(getResources().getIdentifier(songFile[index], "raw", getPackageName()), songList[index]);
 
+            // wait until you get focus of the audio stream
+            while (!requestFocus());
+
         }
         else
             Log.i(TAG, "Service: startSong Null Player");
@@ -247,6 +257,9 @@ public class MusicController extends Service implements MediaPlayer.OnErrorListe
         if (player != null) {
             Log.i(TAG, "Service: reset()");
 
+            // abandon focus of the audio stream
+            while(!abandonFocus());
+            
             player.reset();
             cancelNotification();
         }
@@ -329,4 +342,46 @@ public class MusicController extends Service implements MediaPlayer.OnErrorListe
         stopForeground(true);
     }
 
+    // service requests audio focus so that it can play the music
+    public boolean requestFocus() {
+
+        boolean retval = (AudioManager.AUDIOFOCUS_REQUEST_GRANTED ==
+                mAudioManager.requestAudioFocus(this, AudioManager.STREAM_MUSIC,
+                        AudioManager.AUDIOFOCUS_GAIN));
+        return retval;
+    }
+
+    // service releases audio focus when playback is paused
+    public boolean abandonFocus() {
+
+        boolean retval = (AudioManager.AUDIOFOCUS_REQUEST_GRANTED ==
+                mAudioManager.abandonAudioFocus(this));
+        return retval;
+    }
+
+    // callback method invoked when any change in audio focus is detected
+    @Override
+    public void onAudioFocusChange(int focusChange) {
+        // temporary loss of audio focus. pause until it is restored
+        if (focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT) {
+            if (player.isPlaying()) {
+                // player paused due to focus loss. should resume when regaining focus
+                focus_loss_paused = true;
+                pause();
+            }
+        }
+        // gained audio focus. so resume playback of song. The music
+        // must have been playing when the audiofocus was lost earlier.
+        else if (focusChange == AudioManager.AUDIOFOCUS_GAIN) {
+            // player was paused due to focus loss, so resume playing
+            if (focus_loss_paused) {
+                focus_loss_paused = false;
+                resume();
+            }
+        }
+        // audio focus permanently lost. so stop all music playback.
+        else if (focusChange == AudioManager.AUDIOFOCUS_LOSS) {
+            reset();
+        }
+    }
 }
