@@ -1,19 +1,23 @@
 package hk.ust.cse.comp4521.musicplayer.player;
 
 import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.media.MediaPlayer;
+import android.media.MediaPlayer.OnCompletionListener;
+import android.preference.PreferenceManager;
 import android.util.Log;
 import java.util.Observable;
 
-/**
- * Created by muppala on 13/2/16.
- */
+import hk.ust.cse.comp4521.musicplayer.Constants;
+import hk.ust.cse.comp4521.musicplayer.MusicController;
+
 public class MusicPlayer extends Observable {
 
     private static final String TAG = "Music Player";
     MediaPlayer player = null;
     private int position = 0;
-    private int mSong;
+    private int mSong = -1;
     private String mSongTitle;
     private int rewforwTime = 5000; // ms
 
@@ -36,6 +40,11 @@ public class MusicPlayer extends Observable {
     public void setContext(Context c){
 
         mContext = c;
+
+        restoreSongInfo();
+        position = getPosition();
+
+        start(mSong,mSongTitle);
 
     }
 
@@ -61,17 +70,24 @@ public class MusicPlayer extends Observable {
             mSong = song;
             mSongTitle = title;
 
-            player = MediaPlayer.create(mContext, song);
-            player.setLooping(false); // Set looping
-            totalDuration = player.getDuration();
+            if (mSong >= 0) {
 
-            player.setOnCompletionListener(new MediaPlayer.OnCompletionListener(){
-                public void onCompletion(MediaPlayer mp) {
-                    reset();
-                    start(mSong, mSongTitle);
-                }
-            });
-            setState(PlayerState.Ready);
+                saveSongInfo(mSong, mSongTitle);
+                player = MediaPlayer.create(mContext, song);
+                player.setLooping(false); // Set looping
+                totalDuration = player.getDuration();
+                player.seekTo(position);
+
+                player.setOnCompletionListener(new OnCompletionListener() {
+                    public void onCompletion(MediaPlayer mp) {
+                        Intent intent = new Intent(mContext, MusicController.class);
+                        intent.setAction(Constants.ACTION_COMPLETED);
+                        mContext.startService(intent);
+
+                    }
+                });
+                setState(PlayerState.Ready);
+            }
         }
         else
             Log.i(TAG, "Start: Wrong Player State");
@@ -79,7 +95,37 @@ public class MusicPlayer extends Observable {
 
     }
 
+    private void saveSongInfo(int index, String songTitle) {
+
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(mContext);
+        SharedPreferences.Editor prefed = prefs.edit();
+        prefed.putInt("SongID", index);
+        prefed.putString("Song Title", songTitle);
+        prefed.commit();
+
+    }
+
+    private void restoreSongInfo() {
+
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(mContext);
+        mSong = prefs.getInt("SongID", -1);
+        mSongTitle = prefs.getString("Song Title", "");
+
+    }
+
     public String getSongTitle() { return mSongTitle; }
+
+    private void savePosition(int pos) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(mContext);
+        SharedPreferences.Editor prefed = prefs.edit();
+        prefed.putInt("Position", pos);
+        prefed.commit();
+    }
+
+    private int getPosition() {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(mContext);
+        return prefs.getInt("Position", 0);
+    }
 
     public void play_pause() {
         Log.i(TAG, "Play_pause");
@@ -117,6 +163,7 @@ public class MusicPlayer extends Observable {
         {
             player.pause();
             position = player.getCurrentPosition();
+            savePosition(position);
             setState(PlayerState.Paused);
         }
         else
@@ -161,6 +208,7 @@ public class MusicPlayer extends Observable {
             Log.i(TAG, "Stop");
             player.stop();
             position = player.getCurrentPosition();
+            savePosition(position);
             player.release();
             player = null;
             setState(PlayerState.Stopped);
@@ -176,6 +224,7 @@ public class MusicPlayer extends Observable {
             player.reset();
             player.release();
             position = 0;
+            savePosition(position);
             player = null;
             setState(PlayerState.Reset);
         }
@@ -248,4 +297,5 @@ public class MusicPlayer extends Observable {
         // return timer string
         return finalTimerString;
     }
+
 }

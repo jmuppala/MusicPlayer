@@ -73,8 +73,6 @@ public class MusicController extends Service implements MediaPlayer.OnErrorListe
         // get access to the AudioManager
         mAudioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
 
-        startSong(songIndex);
-
     }
 
     @Override
@@ -84,6 +82,8 @@ public class MusicController extends Service implements MediaPlayer.OnErrorListe
         // Pop up a message on the screen to show that the service is started
         Toast.makeText(this, "MusicController Service Stopped", Toast.LENGTH_SHORT).show();
         Log.i(TAG, "Service: onDestroy()");
+
+        cancelNotification();
 
         player.reset();
         player = null;
@@ -259,7 +259,7 @@ public class MusicController extends Service implements MediaPlayer.OnErrorListe
 
             // abandon focus of the audio stream
             while(!abandonFocus());
-            
+
             player.reset();
             cancelNotification();
         }
