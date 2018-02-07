@@ -1,9 +1,16 @@
 package hk.ust.cse.comp4521.musicplayer;
 
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.app.Service;
+import android.content.Context;
 import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.media.MediaPlayer;
 import android.os.IBinder;
+import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 import android.widget.Toast;
 
@@ -18,9 +25,14 @@ public class MusicController extends Service implements MediaPlayer.OnErrorListe
 
     private static final String TAG = "MusicController";
 
+    private NotificationManager mNotificationManager;
+    private int noteId = 1;
+
     MusicPlayer player = null;
 
     private static int songIndex = 0;
+
+    String CHANNEL_ID = "my_channel_01";
 
     @Override
     public IBinder onBind(Intent arg0) {
@@ -44,6 +56,15 @@ public class MusicController extends Service implements MediaPlayer.OnErrorListe
         // set the context for the music player to be this service
         player = MusicPlayer.getMusicPlayer();
         player.setContext(this);
+
+        //get access to the notification manager
+        mNotificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            NotificationChannel mChannel = new NotificationChannel(CHANNEL_ID, "Main", NotificationManager.IMPORTANCE_DEFAULT);
+            mNotificationManager.createNotificationChannel(mChannel);
+        }
+
 
         startSong(songIndex);
 
@@ -153,21 +174,12 @@ public class MusicController extends Service implements MediaPlayer.OnErrorListe
     public void play_pause() {
 
         if (player != null) {
-            // if player is playing, then abandon audio focus. we are pausing playback
-            // else, get audio focus before we proceed to play the song.
-            if (player.isPlaying()) {
 
-                // update the pause button in the notification to play button
-            }
-            else {
-
-                // update the pause button in the notification to pause button
-            }
+            updateNotification();
             Log.i(TAG, "Service: play_pause()");
 
             player.play_pause();
 
-            // update notification with song information
         }
         else
             Log.i(TAG, "Service: play_pause() Null Player");
@@ -181,6 +193,7 @@ public class MusicController extends Service implements MediaPlayer.OnErrorListe
             player.resume();
 
             // update the pause button in the notification to pause button
+            updateNotification();
         }
         else
             Log.i(TAG, "Service: resume() Null Player");
@@ -193,6 +206,7 @@ public class MusicController extends Service implements MediaPlayer.OnErrorListe
 
             player.pause();
             // update the pause button in the notification to play button
+            updateNotification();
         }
         else
             Log.i(TAG, "Service: pause() Null Player");
@@ -234,6 +248,7 @@ public class MusicController extends Service implements MediaPlayer.OnErrorListe
             Log.i(TAG, "Service: reset()");
 
             player.reset();
+            cancelNotification();
         }
         else
             Log.i(TAG, "Service: reset() Null Player");
@@ -248,4 +263,70 @@ public class MusicController extends Service implements MediaPlayer.OnErrorListe
         else
             Log.i(TAG, "Service: reposition() Null Player");
     }
+
+    // put the notification into the notification bar. This method is called when the song is first
+    // initialized. It will be updated with control buttons by updateNotification().
+    private void putNotification(){
+
+        Bitmap largeIcon;
+
+        largeIcon = BitmapFactory.decodeResource(getResources(), R.drawable.ic_album_black_48dp);
+
+        NotificationCompat.Builder mBuilder =
+                new NotificationCompat.Builder(this, CHANNEL_ID)
+                        .setSmallIcon(R.drawable.ic_play_arrow_white_18dp)
+                        .setLargeIcon(largeIcon.createScaledBitmap(largeIcon,72,72,false))
+                        .setOngoing(true)
+                        .setContentTitle("Music Player")
+                        .setContentText("");
+
+        // Creates an explicit intent for the MusicActivity Activity
+        Intent resultIntent = new Intent(this, MusicActivity.class);
+
+        // create a pending intent that will be fired when notification is touched.
+        PendingIntent resultPendingIntent = PendingIntent.getActivity(this, 0, resultIntent, 0);
+
+        mBuilder.setContentIntent(resultPendingIntent);
+
+        Log.i(TAG, "Service: putNotification()");
+
+        // noteId allows you to update the notification later on.
+        // set the service as a foreground service
+        startForeground(noteId,mBuilder.build());
+
+    }
+
+    // updateNotification() updates the information in the notification and adds the player
+    // control buttons.
+    private void updateNotification(){
+
+            Bitmap largeIcon;
+
+            largeIcon = BitmapFactory.decodeResource(getResources(), R.drawable.ic_album_black_48dp);
+
+            NotificationCompat.Builder mBuilder =
+                    new NotificationCompat.Builder(this, CHANNEL_ID)
+                            .setSmallIcon(R.drawable.ic_play_arrow_white_18dp)
+                            .setLargeIcon(largeIcon.createScaledBitmap(largeIcon, 72, 72, false))
+                            .setOngoing(true)
+                            .setContentTitle("Music Player")
+                            .setContentText(player.getSongTitle());
+
+            // Creates an explicit intent for the MusicActivity Activity
+            Intent resultIntent = new Intent(this, MusicActivity.class);
+            PendingIntent resultPendingIntent = PendingIntent.getActivity(this, 0, resultIntent, 0);
+
+            mBuilder.setContentIntent(resultPendingIntent);
+
+            Log.i(TAG, "Service: putNotification()");
+
+            // noteId allows you to update the notification later on.
+            mNotificationManager.notify(noteId, mBuilder.build());
+    }
+
+    private void cancelNotification() {
+        mNotificationManager.cancel(noteId);
+        stopForeground(true);
+    }
+
 }
