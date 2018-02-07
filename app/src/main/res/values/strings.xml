@@ -5,6 +5,8 @@
     <string name="stopped">Song is stopped</string>
     <string name="paused">Song is paused</string>
     <string name="reset">Player is reset</string>
+    <string name="NowPlaying">Now Playing</string>
+    <string name="SongList">Song List</string>
 
     <string-array name="Songs">
         <item>Man with the Blues</item>
@@ -14,4 +16,7 @@
         <item>man_with_the_blues</item>
         <item>maroon5_misery</item>
     </string-array>
+
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
 </resources>

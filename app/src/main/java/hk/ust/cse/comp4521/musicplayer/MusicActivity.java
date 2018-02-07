@@ -1,9 +1,11 @@
 package hk.ust.cse.comp4521.musicplayer;
 
+import android.support.v4.app.FragmentTransaction;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.support.design.widget.Snackbar;
+import android.support.v4.app.Fragment;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
@@ -20,40 +22,16 @@ import java.util.Observer;
 import hk.ust.cse.comp4521.musicplayer.player.MusicPlayer;
 import hk.ust.cse.comp4521.musicplayer.player.PlayerState;
 
-public class MusicActivity extends AppCompatActivity implements View.OnClickListener, SeekBar.OnSeekBarChangeListener, Observer {
+public class MusicActivity extends AppCompatActivity implements Playlist.OnSongSelectedListener  {
 
-    private static final String TAG = "MusicPlayer";
-    private static ImageButton playerButton, rewindButton, forwardButton;
-    public static Handler handler;
-    private TextView songTitleText;
+
+    private static final String TAG = "MusicActivity";
     private static int songIndex = 0;
 
-    /*
-     * Class Name: MusicPlayer
-     *
-     *    This class implements support for playing a music file using the MediaPlayer class in Android.
-     *    It supports the following methods:
-     *
-     *    play_pause(): toggles the player between playing and paused states
-     *    resume(): resume playing the current song
-     *    pause(): pause the currently playing song
-     *    rewind(): rewind the currently playing song by one step
-     *    forward(): forward the currently playing song by one step
-     *    stop(): stop the currently playing song
-     *    reset(): reset the music player and release the MediaPlayer associated with it
-     *    reposition(value): repositions the playing position of the song to value% and resumes playing
-     *
-     *    progress(): returns the percentage of the playback completed. useful to update the progress bar
-     *    completedTime(): Amount of the song time completed playing
-     *    remainingTime(): Remaining time of the song being played
-     *
-     *    You should use these methods to manage the playing of the song.
-     *
-     */
     private MusicPlayer player;
 
-    private SeekBar songProgressBar;
-    private TextView complTime, remTime;
+    // indicates if the player is running on a small screen device (false) or tablet (true)
+    private boolean dualview = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -74,42 +52,29 @@ public class MusicActivity extends AppCompatActivity implements View.OnClickList
         player = MusicPlayer.getMusicPlayer();
         player.setContext(this);
 
-        player.addObserver(this);
-
-        playerButton = (ImageButton) findViewById(R.id.play);
-        playerButton.setOnClickListener(this);
-
-        rewindButton = (ImageButton) findViewById(R.id.rewind);
-        rewindButton.setOnClickListener(this);
-
-        forwardButton = (ImageButton) findViewById(R.id.forward);
-        forwardButton.setOnClickListener(this);
-
-        songTitleText = (TextView)findViewById(R.id.songTitle);
-
-        // get reference to the SeekBar, completion time and remaining time.
-        songProgressBar = (SeekBar) findViewById(R.id.songProgessBar);
-
-        //set max to 100, means that complete song has been played
-        songProgressBar.setMax(100);
-        //initializing SeekBarChangeListener
-        songProgressBar.setOnSeekBarChangeListener(this);
-
-        complTime = (TextView) findViewById(R.id.songCurrentDurationLabel);
-        remTime = (TextView) findViewById(R.id.songRemainingDurationLabel);
-
         startSong(songIndex);
 
-        if(player.isPlaying()){
-            updateSongProgress();
+        // If the view being used contains the SongPlaying fragment in the layout, then
+        // we are using dualview layout and the screen size is large. So both fragments
+        // are on the screen. Set dualview to true
+        if (findViewById(R.id.song) != null)
+            dualview = true;
+
+        if (!dualview) {
+            if (findViewById(R.id.fragment_container) != null) {
+                FragmentTransaction ft = getSupportFragmentManager().beginTransaction();
+                Fragment firstFragment = getSupportFragmentManager().findFragmentByTag(getResources().getString(R.string.NowPlaying));
+                if (firstFragment == null) {
+                    firstFragment = new SongPlaying();
+                    ft.add(R.id.fragment_container, firstFragment, getResources().getString(R.string.NowPlaying));
+                }
+                else
+                    ft.replace(R.id.fragment_container, firstFragment);
+                ft.commit();
+                Log.i(TAG, "First Fragment: " + firstFragment.getTag() + " Res ID: " + firstFragment.getId());
+            }
         }
 
-        // shows the current progress of the player
-        songProgressBar.setProgress(player.progress());
-        complTime.setText(player.completedTime());
-        remTime.setText("-" + player.remainingTime());
-
-        handler = new Handler();
     }
 
     private	void	startSong(int	index){
@@ -118,7 +83,6 @@ public class MusicActivity extends AppCompatActivity implements View.OnClickList
 
         player.start(getResources().getIdentifier(songFile[index], "raw", getPackageName()), songList[index]);
 
-        songTitleText.setText(player.getSongTitle());
     }
 
 
@@ -203,13 +167,18 @@ public class MusicActivity extends AppCompatActivity implements View.OnClickList
             return true;
         }
         else if (id == R.id.action_playlist) {
+            if (!dualview) {
 
-            Intent i = new Intent(getApplicationContext(), Playlist.class);
-
-            // start the playlist activity and once the user selects a song
-            // from the list, return the information about the selected song
-            // to MusicActivity
-            startActivityForResult(i, 100);
+                FragmentTransaction ft = getSupportFragmentManager().beginTransaction();
+                Fragment secondFragment = getSupportFragmentManager().findFragmentByTag(getResources().getString(R.string.SongList));
+                if (secondFragment == null) {
+                    secondFragment = new Playlist();
+                }
+                ft.replace(R.id.fragment_container, secondFragment, getResources().getString(R.string.SongList));
+                ft.addToBackStack(null);
+                ft.commit();
+                Log.i(TAG, "Second Fragment: " + secondFragment.getTag() + " Res ID: " + secondFragment.getId());
+            }
             return true;
         }
 
@@ -217,104 +186,22 @@ public class MusicActivity extends AppCompatActivity implements View.OnClickList
     }
 
     @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+    public void onSongSelected(int id) {
+        // This method is for the OnSongSelectedListener interface. When the user selects a song in the
+        // play list, then this method is invoked
+        player.reset();
 
-        super.onActivityResult(requestCode, resultCode, data);
+        songIndex = id;
+        startSong(id);
 
-        if (resultCode == 100) {
-            songIndex = data.getExtras().getInt("songIndex");
+        if (!dualview) {
 
-            player.reset();
-
-            startSong(songIndex);
+            Fragment firstFragment = getSupportFragmentManager().findFragmentByTag(getResources().getString(R.string.NowPlaying));
+            Log.i(TAG, "First Fragment: " + firstFragment.getTag() + " Res ID: " + firstFragment.getId());
+            FragmentTransaction ft = getSupportFragmentManager().beginTransaction();
+            ft.replace(R.id.fragment_container, firstFragment);
+            ft.addToBackStack(null);
+            ft.commit();
         }
-    }
-
-    @Override
-    public void update(Observable observable, Object o) {
-        // The update method is called whenever the Music Player experiences
-        // change of state
-        // arg1 returns the current state of the player in the form of
-        // PlayerState enum variable
-        // Use the switch to recognize which state the player just entered and
-        // take appropriate
-        // action to handle the change of state. Here we update the play/pause
-        // button accordingly
-
-        switch ((PlayerState) o) {
-            case Ready:
-                Log.i(TAG, "Activity: Player State Changed to Ready");
-                songTitleText.setText(player.getSongTitle());
-                playerButton.setImageResource(R.drawable.ic_play_circle_outline_white_48dp);
-                songProgressBar.setProgress(player.progress());
-                complTime.setText(player.completedTime());
-                remTime.setText("-" + player.remainingTime());
-                break;
-            case Paused:
-                Log.i(TAG, "Activity: Player State Changed to Paused");
-                playerButton.setImageResource(R.drawable.ic_play_circle_outline_white_48dp);
-                songProgressBar.setProgress(player.progress());
-                complTime.setText(player.completedTime());
-                remTime.setText("-" + player.remainingTime());
-                break;
-            case Stopped:
-                Log.i(TAG, "Activity: Player State Changed to Stopped");
-                cancelUpdateSongProgress();
-                break;
-            case Playing:
-                Log.i(TAG, "Activity: Player State Changed to Playing");
-                updateSongProgress();
-                break;
-            case Reset:
-                Log.i(TAG, "Activity: Player State Changed to Reset");
-                cancelUpdateSongProgress();
-                break;
-            default:
-                break;
-        }
-    }
-
-    public void updateSongProgress() {
-        handler.postDelayed(songProgressUpdate, 500);
-        playerButton.setImageResource(R.drawable.ic_pause_circle_outline_white_48dp);
-    }
-
-    private Runnable songProgressUpdate = new Runnable() {
-        @Override
-        public void run() {
-            // TODO Auto-generated method stub
-            // initialize the Progress bar and the status of TextView
-            // We want to modify the progress bar, but w can do it only
-            // from the UI thread, To do this, we make use of the handler
-            songProgressBar.setProgress(player.progress());
-            complTime.setText(player.completedTime());
-            remTime.setText("-" + player.remainingTime());
-            // schedule another update for every 500 msec later
-            handler.postDelayed(songProgressUpdate, 500);
-        }
-    };
-    public void cancelUpdateSongProgress(){
-        // cancel all callbacks that are already in the handler queue
-        handler.removeCallbacks(songProgressUpdate);
-        playerButton.setImageResource(R.drawable.ic_play_circle_outline_white_48dp);
-    }
-
-    @Override
-    public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-
-        cancelUpdateSongProgress();
-        if (fromUser && player.isPlaying())
-            player.reposition(progress);
-        updateSongProgress();
-    }
-
-    @Override
-    public void onStartTrackingTouch(SeekBar seekBar) {
-
-    }
-
-    @Override
-    public void onStopTrackingTouch(SeekBar seekBar) {
-
     }
 }

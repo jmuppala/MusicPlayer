@@ -4,6 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
     tools:context="hk.ust.cse.comp4521.musicplayer.MusicActivity">
 
     <android.support.design.widget.AppBarLayout
@@ -20,12 +21,26 @@
 
     </android.support.design.widget.AppBarLayout>
 
+    <LinearLayout
+        android:id="@+id/dualpane"
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent"
+        android:layout_marginTop="?attr/actionBarSize"
+        android:orientation="horizontal">
 
-    <FrameLayout
-        android:id="@+id/fragment_container"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_marginTop="?android:attr/actionBarSize">
+        <fragment
+            android:id="@+id/song"
+            android:name="hk.ust.cse.comp4521.musicplayer.SongPlaying"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1" />
 
-    </FrameLayout>
+        <fragment
+            android:id="@+id/songlist"
+            android:name="hk.ust.cse.comp4521.musicplayer.Playlist"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1" />
+
+    </LinearLayout>
 </android.support.design.widget.CoordinatorLayout>

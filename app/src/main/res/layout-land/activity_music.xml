@@ -4,6 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
     tools:context="hk.ust.cse.comp4521.musicplayer.MusicActivity">
 
     <android.support.design.widget.AppBarLayout
@@ -20,12 +21,11 @@
 
     </android.support.design.widget.AppBarLayout>
 
-
     <FrameLayout
         android:id="@+id/fragment_container"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_marginTop="?android:attr/actionBarSize">
+        android:layout_marginTop="?attr/actionBarSize">
 
     </FrameLayout>
 </android.support.design.widget.CoordinatorLayout>
