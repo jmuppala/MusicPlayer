@@ -7,6 +7,8 @@ import android.support.v4.app.Fragment;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
+import android.view.GestureDetector;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -21,6 +23,8 @@ public class MusicActivity extends AppCompatActivity implements Playlist.OnSongS
 
     // indicates if the player is running on a small screen device (false) or tablet (true)
     private boolean dualview = false;
+
+    private GestureDetector mDetector;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -53,6 +57,8 @@ public class MusicActivity extends AppCompatActivity implements Playlist.OnSongS
                 Log.i(TAG, "First Fragment: " + firstFragment.getTag() + " Res ID: " + firstFragment.getId());
             }
         }
+
+        mDetector = new GestureDetector(this, new MyGestureListener());
 
     }
 
@@ -162,6 +168,49 @@ public class MusicActivity extends AppCompatActivity implements Playlist.OnSongS
             ft.replace(R.id.fragment_container, firstFragment);
             ft.addToBackStack(null);
             ft.commit();
+        }
+    }
+
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+
+        this.mDetector.onTouchEvent(event);
+
+        return super.onTouchEvent(event);
+    }
+    
+    class MyGestureListener extends GestureDetector.SimpleOnGestureListener {
+
+        @Override
+        public boolean onDown(MotionEvent e) {
+
+            return true;
+        }
+
+        @Override
+        public boolean onFling(MotionEvent event1, MotionEvent event2, float velocityX,
+                               float velocityY) {
+
+            // gesture is from left to right
+            if (velocityX > 0) {
+
+                // bring the playlist fragment to the front and once the user selects a song
+                // from the list, return the information about the selected song
+                // to MusicActivity
+                if (!dualview) {
+
+                    FragmentTransaction ft = getSupportFragmentManager().beginTransaction();
+                    Fragment secondFragment = getSupportFragmentManager().findFragmentByTag(getResources().getString(R.string.SongList));
+                    if (secondFragment == null) {
+                        secondFragment = new Playlist();
+                    }
+                    ft.replace(R.id.fragment_container, secondFragment, getResources().getString(R.string.SongList));
+                    ft.addToBackStack(null);
+                    ft.commit();
+                    Log.i(TAG, "Second Fragment: " + secondFragment.getTag() + " Res ID: " + secondFragment.getId());
+                }
+            }
+            return true;
         }
     }
 }
