@@ -1,5 +1,8 @@
 package hk.ust.cse.comp4521.musicplayer;
 
+import android.animation.AnimatorInflater;
+import android.animation.ObjectAnimator;
+import android.animation.StateListAnimator;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
@@ -94,6 +97,15 @@ public class SongPlaying extends Fragment implements View.OnClickListener, SeekB
         forwardButton = (ImageButton) view.findViewById(R.id.forward);
         forwardButton.setOnClickListener(this);
 
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+            StateListAnimator emphasizePlay = AnimatorInflater.loadStateListAnimator(getContext(), R.drawable.statelist_animator);
+            playerButton.setStateListAnimator(emphasizePlay);
+            StateListAnimator emphasizeRew = AnimatorInflater.loadStateListAnimator(getContext(), R.drawable.statelist_animator);
+            rewindButton.setStateListAnimator(emphasizeRew);
+            StateListAnimator emphasizeForw = AnimatorInflater.loadStateListAnimator(getContext(), R.drawable.statelist_animator);
+            forwardButton.setStateListAnimator(emphasizeForw);
+        }
+
         songTitleText = (TextView) view.findViewById(R.id.songTitle);
 
         songImage = (ImageView) view.findViewById(R.id.songImage);
@@ -125,6 +137,13 @@ public class SongPlaying extends Fragment implements View.OnClickListener, SeekB
     public void setSongTitle(String title) {
         songTitleText.setText(title);
 
+        ObjectAnimator textanim = (ObjectAnimator)  ObjectAnimator.ofFloat(songTitleText, "alpha", 0f, 1f);
+        textanim.setDuration(5000);
+        textanim.start();
+
+        ObjectAnimator imageanim = (ObjectAnimator)  ObjectAnimator.ofFloat(songImage, "alpha", 0f, 1f);
+        imageanim.setDuration(5000);
+        imageanim.start();
     }
 
     @Override
