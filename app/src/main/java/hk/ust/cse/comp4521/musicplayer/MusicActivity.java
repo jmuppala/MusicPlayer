@@ -19,7 +19,7 @@ public class MusicActivity extends AppCompatActivity implements Playlist.OnSongS
 
 
     private static final String TAG = "MusicActivity";
-    private static int songIndex = 0;
+    private static long songIndex = 0;
 
     // indicates if the player is running on a small screen device (false) or tablet (true)
     private boolean dualview = false;
@@ -144,7 +144,7 @@ public class MusicActivity extends AppCompatActivity implements Playlist.OnSongS
     }
 
     @Override
-    public void onSongSelected(int id) {
+    public void onSongSelected(long id) {
         // This method is for the OnSongSelectedListener interface. When the user selects a song in the
         // play list, then this method is invoked
 

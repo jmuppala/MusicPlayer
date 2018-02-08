@@ -1,24 +1,35 @@
 package hk.ust.cse.comp4521.musicplayer.player;
 
+import android.content.ContentUris;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.database.Cursor;
+import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.media.MediaPlayer.OnCompletionListener;
+import android.net.Uri;
 import android.preference.PreferenceManager;
+import android.provider.MediaStore;
 import android.util.Log;
+
+import java.io.IOException;
 import java.util.Observable;
 
 import hk.ust.cse.comp4521.musicplayer.Constants;
 import hk.ust.cse.comp4521.musicplayer.MusicController;
+import hk.ust.cse.comp4521.musicplayer.R;
 
 public class MusicPlayer extends Observable {
 
     private static final String TAG = "Music Player";
     MediaPlayer player = null;
     private int position = 0;
-    private int mSong = -1;
+    private long mSong = -1;
     private String mSongTitle;
+    private String mSongFile = null;
+    private String albumUri = null;
+
     private int rewforwTime = 5000; // ms
 
     private int currentDuration, totalDuration;
@@ -44,7 +55,7 @@ public class MusicPlayer extends Observable {
         restoreSongInfo();
         position = getPosition();
 
-        start(mSong,mSongTitle);
+        start(mSong);
 
     }
 
@@ -61,20 +72,49 @@ public class MusicPlayer extends Observable {
             return false;
     }
 
-    public void start(int song, String title){
+    public void start(long song){
 
         Log.i(TAG, "Start");
 
         if (mState == PlayerState.Reset){
 
             mSong = song;
-            mSongTitle = title;
 
             if (mSong >= 0) {
 
-                saveSongInfo(mSong, mSongTitle);
-                player = MediaPlayer.create(mContext, song);
+                saveSongInfo(mSong);
+
+                player = new MediaPlayer();
+                player.setAudioStreamType(AudioManager.STREAM_MUSIC);
+
+                try {
+                    player.setDataSource(mSongFile);
+                } catch (IllegalArgumentException e) {
+
+                    e.printStackTrace();
+                } catch (SecurityException e) {
+
+                    e.printStackTrace();
+                } catch (IllegalStateException e) {
+
+                    e.printStackTrace();
+                } catch (IOException e) {
+
+                    e.printStackTrace();
+                }
+
                 player.setLooping(false); // Set looping
+
+                try {
+                    player.prepare();
+                } catch (IllegalStateException e) {
+
+                    e.printStackTrace();
+                } catch (IOException e) {
+
+                    e.printStackTrace();
+                }
+
                 totalDuration = player.getDuration();
                 player.seekTo(position);
 
@@ -95,12 +135,75 @@ public class MusicPlayer extends Observable {
 
     }
 
-    private void saveSongInfo(int index, String songTitle) {
+    private void saveSongInfo(long index) {
+
+        int music_column_index;
+        Cursor musiccursor;
+
+        // The specific row and the columns that I wish to retrieve
+        final String[] MUSIC_SUMMARY_PROJECTION = new String[] {
+                MediaStore.Audio.Media._ID,
+                MediaStore.Audio.Media.DATA, // file handle
+                MediaStore.Audio.Media.DISPLAY_NAME, // name of the music file
+                MediaStore.Audio.Media.TITLE, // title of the song
+                MediaStore.Audio.Media.ARTIST, //Artist's name
+                MediaStore.Audio.Media.ALBUM_ID // album id to retrieve album art
+        };
+
+        Uri baseUri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, index);
+
+
+        String select = "((" + MediaStore.Audio.Media.DISPLAY_NAME + " NOTNULL) AND ("
+                + MediaStore.Audio.Media.DATA + " NOTNULL) AND ("
+                + MediaStore.Audio.Media.DISPLAY_NAME + " != '' ) AND ("
+                + MediaStore.Audio.Media.IS_MUSIC + " != 0))";
+
+        musiccursor = mContext.getContentResolver().query(baseUri, MUSIC_SUMMARY_PROJECTION,
+                select, null, MediaStore.Audio.Media.DATA + " COLLATE LOCALIZED ASC");
+
+        mSong = index;
+
+        musiccursor.moveToFirst();
+        // get the title of the song
+        music_column_index = musiccursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE);
+        mSongTitle = musiccursor.getString(music_column_index);
+        // get the artist's name and append to the song title
+        music_column_index = musiccursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST);
+        mSongTitle += musiccursor.getString(music_column_index);
+        // get the file handle
+        music_column_index = musiccursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA);
+        mSongFile =musiccursor.getString(music_column_index);
+        // get the album id
+        music_column_index = musiccursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID);
+        long albumid = musiccursor.getLong(music_column_index);
+        musiccursor.close();
+
+        String[] projectionImages = new String[] { MediaStore.Audio.Albums._ID, MediaStore.Audio.Albums.ALBUM_ART};
+        Cursor c = mContext.getContentResolver().query(MediaStore.Audio.Albums.EXTERNAL_CONTENT_URI, projectionImages,
+                MediaStore.Audio.Albums._ID + "= "+albumid, null, null);
+
+        if (c != null) {
+
+            c.moveToFirst();
+            String coverPath = c.getString(c.getColumnIndexOrThrow(MediaStore.Audio.Albums.ALBUM_ART));
+            c.close();
+
+            if (coverPath == null) {
+                coverPath = "android.resource://hkust.comp4521.audio/" + R.drawable.ic_album_black_48dp;
+            }
+            albumUri = coverPath;
+        }
+
+        Log.i(TAG, "Song Selected: "+mSong + " "+mSongFile + " "+ mSongTitle + " albumID: " + albumid);
 
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(mContext);
         SharedPreferences.Editor prefed = prefs.edit();
-        prefed.putInt("SongID", index);
-        prefed.putString("Song Title", songTitle);
+        prefed.putLong("SongID", mSong);
+        prefed.putString("Song Title", mSongTitle);
+        prefed.putString("File Name", mSongFile);
+        prefed.putString("Album Art", albumUri);
+        if (mSong != -1)
+            prefed.putInt("Position", 0);
         prefed.commit();
 
     }
@@ -108,9 +211,10 @@ public class MusicPlayer extends Observable {
     private void restoreSongInfo() {
 
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(mContext);
-        mSong = prefs.getInt("SongID", -1);
-        mSongTitle = prefs.getString("Song Title", "");
-
+        mSong = prefs.getLong("SongID", -1);
+        mSongTitle = prefs.getString("Song Title", null);
+        mSongFile = prefs.getString("File Name", null);
+        albumUri = prefs.getString("Album Art", "android.resource://hkust.comp4521.audio/"+ R.drawable.ic_album_black_48dp);
     }
 
     public String getSongTitle() { return mSongTitle; }

@@ -31,7 +31,7 @@ public class MusicController extends Service implements MediaPlayer.OnErrorListe
 
     MusicPlayer player = null;
 
-    private static int songIndex = 0;
+    private static long songIndex = 0;
 
     String CHANNEL_ID = "my_channel_01";
 
@@ -131,7 +131,7 @@ public class MusicController extends Service implements MediaPlayer.OnErrorListe
             reset();
         } else if( action.equalsIgnoreCase( Constants.ACTION_SONG ) ) {
             reset();
-            int id = intent.getIntExtra("Song",0);
+            long id = intent.getLongExtra("Song",0);
             startSong(id);
         } else if( action.equalsIgnoreCase( Constants.ACTION_REPOSITION ) ) {
             int position = intent.getIntExtra("Position",0);
@@ -161,17 +161,15 @@ public class MusicController extends Service implements MediaPlayer.OnErrorListe
         return false;
     }
 
-    public void startSong(int index) {
+    public void startSong(long index) {
 
         Log.i(TAG, "Service: startSong()");
-
-        final String[] songFile = getResources().getStringArray(R.array.filename);
-        final String[] songList = getResources().getStringArray(R.array.Songs);
 
         if (player != null) {
             songIndex = index;
 
-            player.start(getResources().getIdentifier(songFile[index], "raw", getPackageName()), songList[index]);
+            player.start(index);
+            putNotification();
 
             // wait until you get focus of the audio stream
             while (!requestFocus());
@@ -381,7 +379,7 @@ public class MusicController extends Service implements MediaPlayer.OnErrorListe
         }
         // audio focus permanently lost. so stop all music playback.
         else if (focusChange == AudioManager.AUDIOFOCUS_LOSS) {
-            reset();
+            pause();
         }
     }
 }
